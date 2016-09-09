@@ -28,22 +28,29 @@ public class cPanel extends JPanel {
     private int paintCount = 0;
     private boolean DEBUG = false;
 
-    private int PANEL_WIDTH = 400;
-    private int PANEL_HEIGHT = 400;
+    public static int PANEL_WIDTH;
+    public static int PANEL_HEIGHT;
+
+    public static int PADDING_WIDTH;
+
+    public static int DISPLAY_WIDTH;
+    public static int DISPLAY_HEIGHT;
+
+
+
 
     public cPanel(){
         this(400,400);
     }
 
     public cPanel(int w, int h){
-
         setSize(w,h);   //  Sets size of the panel
 
-        canvas = new BufferedImage(PANEL_WIDTH,PANEL_HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        canvas = new BufferedImage(getWidth(),getHeight(), BufferedImage.TYPE_INT_ARGB);
         canvasGraphics = (Graphics2D)canvas.getGraphics();
 
         backgroundColor = Color.BLACK;  //default BG color, until overridden;
-        backgroundImage = new BufferedImage(PANEL_WIDTH,PANEL_HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        backgroundImage = new BufferedImage(getWidth(),getHeight(), BufferedImage.TYPE_INT_ARGB);
         backgroundGraphics = (Graphics2D)backgroundImage.getGraphics();
 
         setBackgroundToDefault();
@@ -59,7 +66,6 @@ public class cPanel extends JPanel {
     //  Scans through the passed list of DrawableObjects and draws them onto the buffer using their size, location, and image.
     //  Afterwards, the buffer is drawn to the screen using the repaint() method.
     public void loadListToScreen(ArrayList<DrawableObject> objects){
-        //canvasGraphics.drawImage(backgroundImage, 0, 0, this);
         if(!(objects == null) && !(objects.size()==0)){
             int listSize = objects.size();
             for(int i = 0; i < listSize; i++) {
@@ -108,6 +114,20 @@ public class cPanel extends JPanel {
     public void setBackgroundImage(BufferedImage newBG){
         backgroundImage = newBG;
         backgroundGraphics = (Graphics2D)backgroundImage.getGraphics();
+    }
+
+    public static void setPaddingWidth(int pad){
+        PADDING_WIDTH = pad;
+    }
+
+    public static void setPanelDimensions(int w, int h){
+        PANEL_WIDTH = w;
+        PANEL_HEIGHT = h;
+    }
+
+    public static void setDisplayDimensions(int w, int h){
+        DISPLAY_WIDTH = w;
+        DISPLAY_HEIGHT = h;
     }
 
 }

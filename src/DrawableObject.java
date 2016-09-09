@@ -26,6 +26,7 @@ public class DrawableObject {
     protected int y;
 
     protected int[] gridLocation;
+    protected int[] nextGridLocation;
 
     public static void setStringTest(String s){
         DEFAULT_IMAGE_DIRECTORY = s;
@@ -50,6 +51,12 @@ public class DrawableObject {
         setSize(w,h);
         gridLocation = new int[2];
     }
+
+    public void calculateStep() {}
+
+    public void step(){}
+
+    public void updateObjectImage(){}
 
     private void generateIcon(){
         defaultIcon = new BufferedImage(getWidth(),getHeight(),BufferedImage.TYPE_INT_ARGB);
@@ -77,6 +84,15 @@ public class DrawableObject {
         gridLocation[0] = x;
         gridLocation[1] = y;
         setXYLocation(x*IMAGE_WIDTH, y*IMAGE_HEIGHT);
+    }
+
+    public int[] getGridLocation(){
+        return gridLocation;
+    }
+
+    //  This might cause problems
+    public int[] getNextGridLocation(){
+        return gridLocation;
     }
 
     public boolean sameGridLocationAs(int[] loc){

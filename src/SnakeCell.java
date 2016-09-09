@@ -18,10 +18,11 @@ public class SnakeCell extends DrawableObject {
     private String contents;
     private SnakeCell cellBehind;       //  The cell behind this one
     private SnakeCell cellAhead = null;        //  The cell ahead of this one
+    public char oldDirection;
     public Direction direction;
     private String bodyPartType;
 
-    private boolean isHead;
+    private boolean isHead = false;
     private int length;
 
     //  DEFAULT STATIC PARAMETERS
@@ -32,27 +33,6 @@ public class SnakeCell extends DrawableObject {
     public static BufferedImage DEFAULT_BUFFERED_IMAGE;
 
     public static HashMap<String,BufferedImage> imageMap;
-
-    public static BufferedImage bodyUpLeft;
-    public static BufferedImage bodyUpRight;
-    public static BufferedImage bodyDownLeft;
-    public static BufferedImage bodyDownRight;
-
-    public static BufferedImage bodyUp;
-    public static BufferedImage bodyDown;
-    public static BufferedImage bodyLeft;
-    public static BufferedImage bodyRight;
-
-    public static BufferedImage headRight;
-    public static BufferedImage headLeft;
-    public static BufferedImage headUp;
-    public static BufferedImage headDown;
-
-    public static BufferedImage tailLeft;
-    public static BufferedImage tailRight;
-    public static BufferedImage tailUp;
-    public static BufferedImage tailDown;
-
 
     //  Sets up the default static parameters for all objects to share; called early on by the processor
     public static void setupStaticImageParams(){
@@ -135,28 +115,60 @@ public class SnakeCell extends DrawableObject {
         System.out.println("After backward step, the cell would be at [" + nextLoc[0] + "][" + nextLoc[1] + "]");
     }
 
-    public void step(){
-        setBodyPartType(determineBodyPartType());
-        setIcon(imageMap.get(getBodyPartType()));
+    //  This gets called by the processor;  normally I'd let objects do their own thing, but the order in which objects are called on is complicated and messes the snake up
+    //      So this gets called on the its Head only, which takes care of the rest in careful sequence.
+    public void calculateStep(){
+        if(isHead()){
+            calculateNextLocationsOfcells();                //  Calculate and set future locations of the cells behind this one
+            updateLimbDirectionsOfCells(getDirection());    //  Calculate and set current directions of cells
+        }
     }
 
+    //  Gets called by the processor. May need to delegate this to the Head as well...
+    public void step(){
+        moveCellForward();
+    }
+
+    //  Updates the object's icon based on current status
+    public void updateObjectImage(){
+        setBodyPartType(determineBodyPartType());   //  Adjust object's icon based on orientation within the snake.
+        setIcon(imageMap.get(getBodyPartType()));   //  Set the icon
+    }
+
+    public void calculateNextLocationsOfcells(){
+        nextGridLocation = null;                    //  Reset nextGridLocation calculated in previous cycle
+        if(hasCellBehind()){
+            getCellBehind().calculateNextLocationsOfcells();
+        }
+        nextGridLocation = CustomToolkit.fuseArrays(direction.getIncrement(),getGridLocation());
+    }
+
+    public void moveCellForward(){
+        setGridLocation(nextGridLocation[0],nextGridLocation[1]);
+    }
+
+    private void updateLimbDirectionsOfCells(char newDir){
+        if(hasCellBehind()){
+            cellBehind.updateLimbDirectionsOfCells(direction.getDirection());
+        }
+        oldDirection = getDirection();
+        setDirection(newDir);
+    }
+
+    //  Adds a cell to the tail of the snake
     public SnakeCell addAnotherCell(){
         if(hasCellBehind()){
             return cellBehind.addAnotherCell();
         }   else    {
-            int[] locationBehind = CustomToolkit.fuseArrays(direction.getReverseIncrement(),getGridLocation());
-            SnakeCell newCell = new SnakeCell(locationBehind[0],locationBehind[1],getDirection(),1,1);
-            setCellBehind(newCell);
-            newCell.setCellAhead(this);
+            //  Calculate the location of the new cell based on current location of the last cell and its OLD direction - at this point in the process, its direction has changed. Spent hours debugging this to get it to work...
+            int[] locationBehindTail = CustomToolkit.fuseArrays(Direction.getReverseIncrement(oldDirection),getGridLocation());
+            SnakeCell newCell = new SnakeCell(locationBehindTail[0],locationBehindTail[1],direction.getDirection(),1,1);
+            setCellBehind(newCell);                         //  Sets the link behind the current cell to the new cell
+            newCell.setCellAhead(this);                     //  Sets the new cell's forward link to this cell
+            newCell.direction.setDirection(oldDirection);   //  Sets the new cell's direction to current cell's old direction
+            newCell.nextGridLocation = CustomToolkit.fuseArrays(newCell.direction.getIncrement(),newCell.getGridLocation());    //  Sets newCells nextDirection
             return newCell;
         }
-    }
-
-    public void resetBodyOrientation(){
-        if(hasCellBehind()){
-            getCellBehind().resetBodyOrientation();
-        }
-        setBodyPartType(determineBodyPartType());
     }
 
     //  Returns the SnakeCell at the tail
@@ -197,21 +209,13 @@ public class SnakeCell extends DrawableObject {
         length = l;
     }
 
-    //  Moves the snake forward;    method is kid of redundant, but exists for clarity. More clear to call this than 'moveCellForward' from the processor.
-    public void moveSnakeForward(){
-        this.moveCellForward();
-    }
-
-    //  Moves this cell and all those behind it forward, recursively;
-    public void moveCellForward(){
-        //  If cellBehind exists, call this method on it and THEN set its direction to that of this one.
-        if(this.hasCellBehind()){
-            getCellBehind().moveCellForward();
-            getCellBehind().setDirection(getDirection());
+    public boolean locationIsWithinSnake(int[] loc){
+        if(isSameLocation(getGridLocation(),loc)){
+            return true;
+        }   else if(hasCellBehind()){
+            return getCellBehind().locationIsWithinSnake(loc);
         }
-        //  Once the end is reached, actually move the cell forward based on current direction and location
-        int[] newLocation = CustomToolkit.fuseArrays(direction.getIncrement(),getGridLocation());
-        setGridLocation(newLocation[0],newLocation[1]);
+        return false;
     }
 
     //  Deprecated... may not be used at all
@@ -229,6 +233,10 @@ public class SnakeCell extends DrawableObject {
         return gridLocation;
     }
 
+    public static boolean isSameLocation(int[] loc1, int[] loc2){
+        return ((loc1[0] == loc2[0]) && (loc1[1] == loc2[1]));
+    }
+
     //  Returns true if the cell has a cell linked behind it
     public boolean hasCellBehind(){
         return (cellBehind != null);
@@ -241,7 +249,8 @@ public class SnakeCell extends DrawableObject {
 
     //  Returns grid coordinates of the next location of the cell, were it to step forward.
     public int[] getNextLocation(){
-        return CustomToolkit.fuseArrays(direction.getIncrement(),getGridLocation());
+        return nextGridLocation;
+        //return CustomToolkit.fuseArrays(direction.getIncrement(),getGridLocation());
     }
 
     public SnakeCell getCellBehind(){
@@ -272,7 +281,10 @@ public class SnakeCell extends DrawableObject {
         return isHead;
     }
 
+
+
     //  Set current direction of the cell; the direction determines where the cell moves.
+    //  If the cell is a head, set the direction of the cell behind it to that of the head, so decapitation does not take place.
     public void setDirection(char c){
         if(direction==null){
             direction = new Direction(c);

@@ -13,27 +13,26 @@ public class Launch {
 
     //  --------------------------------------------        CONSOLE VARS    -   change these to change outlook of the game. Intended to be intuitive.
     private int gridSize = 20;      //  The number of cells, in one direction, that the world should be split into.
-    private int DEFAULT_LENGTH = 3; //  Starting length of the snake.
+    private int DEFAULT_LENGTH = 8; //  Starting length of the snake.
 
     //  --------------------------------------------        INTERNAL VARS    -   vars used by the system.
     private ArrayList<Treat> listOfTreats;      //  A makeshift list storing created treats.
-    private DrawableObject[][] grid;            //  A 2D grid for idontknowwhat deprecated.
+    public static ArrayList<ArrayList> gameObjects;
+    public static ArrayList<DrawableObject> background;
+    public static ArrayList<DrawableObject> inBetween;
+    public static ArrayList<DrawableObject> foreground;
 
     //  --------------------------------------------        INTERFACE DIMENSIONS
-    private int FRAME_WIDTH = 500;          //  width and height of the main frame.
-    private int FRAME_HEIGHT = 500;
-
-    private int DISPLAY_WIDTH = 400;        //  width and height of the display panel.
-    private int DISPLAY_HEIGHT = 400;
-
     private int cellWidth;                  //  width and height of the cell, CALCULATED based on gridSize;
     private int cellHeight;
 
     private int PAINT_DELAY = 10;           //  delay before painting each frame;
 
-    private int LOGIC_DELAY = 200;           //  delay between steps in game logic (if it's even needed)
+    private int DEFAULT_LOGIC_DELAY = 100;
+    private int LOGIC_DELAY;           //  delay between steps in game logic (if it's even needed)
 
     private boolean KEEP_GOING = true;       //  Boolean that runs the game; if set to false, processes stop.
+    private boolean REFRESH_WORLD = false;
 
     //  --------------------------------------------        IMAGE STORAGE   -   BufferedImages and dimensions related to drawing cells
 
@@ -59,8 +58,10 @@ public class Launch {
         Launch launch = new Launch();
     }
 
-    //  All function starts are housed in the Launch constructor.
+    //  All function starts are housed in the Launch constructor.       There are inter-dependencies, so try not to alter the sequence too much.
     private Launch(){
+        CustomToolkit.setParams();
+        GUIDirector.setupStaticParams();
         setUpGUI();
         SnakeCell.setupStaticImageParams();
         Treat.setupStaticImageParams();
@@ -72,9 +73,21 @@ public class Launch {
 
     //  Initializes the data structures for the program
     private void initializeParams(){
+        listOfTreats = new ArrayList<Treat>();
+        gameObjects = new ArrayList<ArrayList>();
+
+        background = new ArrayList<DrawableObject>();
+        gameObjects.add(background);
+
+        inBetween = new ArrayList<DrawableObject>();
+        gameObjects.add(inBetween);
+
+        foreground = new ArrayList<DrawableObject>();
+        gameObjects.add(foreground);
+
         initializeImages();
         fillImages();
-        listOfTreats = new ArrayList<Treat>();
+
     }
 
     //  Initializes the BufferedImages used, and sets up their graphics.
@@ -82,7 +95,7 @@ public class Launch {
         backgroundTile =  new BufferedImage(cellWidth,cellHeight, BufferedImage.TYPE_INT_ARGB);
         TileGraphics = (Graphics2D)backgroundTile.getGraphics();
 
-        backgroundImage =  new BufferedImage(DISPLAY_WIDTH,DISPLAY_HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        backgroundImage =  new BufferedImage(GUIDirector.PANEL_WIDTH,GUIDirector.PANEL_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         BGGraphics = (Graphics2D)backgroundImage.getGraphics();
 
         snakeTile = new  BufferedImage(cellWidth,cellHeight, BufferedImage.TYPE_INT_ARGB);
@@ -106,15 +119,8 @@ public class Launch {
             while (KEEP_GOING) {
                 Thread.sleep(LOGIC_DELAY);
                 step();
-                ArrayList<SnakeCell> snake = head.getSnakeCells();
-                for(int i = 0; i < snake.size(); i++){
-                    SnakeCell temp = snake.get(i);
-                    temp.step();
-                    //System.out.println(temp.getBodyPartType());
-                    //System.out.println(temp.getBodyPartType() + " is a head: " + temp.getLength());
-                }
-                //refreshDrawables();
-                //square.setX(square.getX()+1);       //  location of the dummy is incremented just for show. Add real program logic here.
+                //System.out.println("---------------------");
+
             }
         } catch (InterruptedException e) {
             System.out.println(Thread.currentThread().getName() + " was interrupted");
@@ -123,17 +129,14 @@ public class Launch {
 
     //  Represents one logic step of the program
     private void step(){
-        checkForKeyboardActions();
-        int[] nextLocation = head.getNextLocation();
-        if(cellIsWithinBounds(nextLocation)){
-            //head.direction.setOpposite();
-            head.moveSnakeForward();
-            Treat treat = returnTreatAtLocation(nextLocation);
-            if(treat!=null){
-                treatEaten(treat);
-            }
+        checkForKeyboardActions();                  //  Checks for any keyboard actions performed and acts on them
+        calculateStep();                            //  Calculates the state of each object in the world;   params like 'nextLocation' are set.
+        checkForCollisions();                       //  Checks for collisions between objects in the world
+        if(REFRESH_WORLD==false) {                  //  If the world doesn't need to be reset (a potential resilt of a collision), then keep going
+            makeTheWorldDance();                        //  call step() on every object in the world
+            updateObjectImages();                       //  Update the image state of every object based on its current params
         }   else    {
-            System.out.println("Starting over! Silly snake.");
+            REFRESH_WORLD = false;                      //  if the world needs to be reset, then do it.
             refreshWorld();
         }
     }
@@ -154,21 +157,103 @@ public class Launch {
         gui.clearAction();
     }
 
+    //  Call calculateStep() on every relevant object in the world; this does things like calculate the nextLocation of an object.
+    public void calculateStep(){
+        ArrayList<DrawableObject> tempObjList;
+        int numOfLists = gameObjects.size();
+        for(int listIndex = 0; listIndex < numOfLists; listIndex++){
+            tempObjList = gameObjects.get(listIndex);
+            int numOfObjects = gameObjects.get(listIndex).size();
+            for(int objIndex = 0; objIndex < numOfObjects; objIndex++){
+                DrawableObject tempObject = tempObjList.get(objIndex);
+                if(tempObject!=null){
+                    tempObject.calculateStep();
+                }
+            }
+        }
+    }
+
+    //  Checks for collisions based every object's calculated new location and change the affected objects accordingly
+    public void checkForCollisions(){
+        if(cellIsWithinBounds(head.getNextLocation())){
+            for(int i = 0; i < inBetween.size(); i++){
+                DrawableObject treat = inBetween.get(i);
+                if(head.locationIsWithinSnake(head.getNextLocation())){
+                    System.out.println("bumped into itself. SILLY SNAKE");
+                    REFRESH_WORLD = true;
+                }
+                if(SnakeCell.isSameLocation(head.getNextGridLocation(),treat.getNextGridLocation())){
+                    treatEaten(treat);
+                }
+            }
+            /*Treat treat = returnTreatAtLocation(nextHeadLocation);
+            if(treat!=null){
+                treatEaten(treat);
+            }*/
+        }   else    {
+            System.out.println("Starting over! Silly snake.");
+            REFRESH_WORLD = true;
+            //refreshWorld();
+        }
+    }
+
+    //  Actually sets things in action by calling step() on every object in the world; changes locations and parameters of objects based on temporary variables assigned in calculateStep() and checkForCollisions()
+    public void makeTheWorldDance(){
+        ArrayList<DrawableObject> tempObjList;
+        int numOfLists = gameObjects.size();
+        for(int listIndex = 0; listIndex < numOfLists; listIndex++){
+            tempObjList = gameObjects.get(listIndex);
+            int numOfObjects = gameObjects.get(listIndex).size();
+            for(int objIndex = 0; objIndex < gameObjects.get(listIndex).size(); objIndex++){
+                DrawableObject tempObject = tempObjList.get(objIndex);
+                if(tempObject!=null){
+                    tempObject.step();
+                }
+            }
+        }
+    }
+
+    //  Updates the iamge state of every object in the world.
+    //  The reason this operation isn't bundled with the rest of the methods is because the way some objects look relies on locations of other objects, so their image can't be settled until the world around them is.
+    //  Think of a straight piece of a snake needing to know that the cells behind and in front of it are truly in place.
+    public void updateObjectImages(){
+        ArrayList<DrawableObject> tempObjList;
+        int numOfLists = gameObjects.size();
+        for(int listIndex = 0; listIndex < numOfLists; listIndex++){
+            tempObjList = gameObjects.get(listIndex);
+            int numOfObjects = gameObjects.get(listIndex).size();
+            for(int objIndex = 0; objIndex < gameObjects.get(listIndex).size(); objIndex++){
+                DrawableObject tempObject = tempObjList.get(objIndex);
+                if(tempObject!=null){
+                    tempObject.updateObjectImage();
+                }
+            }
+        }
+    };
+
     //  Sets up a GUI director, in charge of the interface and graphics. Passes commands to the frame, the canvas, and other components.
     public void setUpGUI(){
-        gui = new GUIDirector(FRAME_WIDTH,FRAME_HEIGHT,DISPLAY_WIDTH,DISPLAY_HEIGHT);
+        gui = new GUIDirector();
         gui.setPaintDelay(PAINT_DELAY);
-        grid = new DrawableObject[gridSize][gridSize];
-        cellWidth = DISPLAY_WIDTH / gridSize;
-        cellHeight = DISPLAY_HEIGHT / gridSize;
+        cellWidth = GUIDirector.PANEL_WIDTH / gridSize;
+        cellHeight = GUIDirector.PANEL_HEIGHT / gridSize;
     }
 
     //  Recreates the game world. Requires the data structures to have been loaded.
     private void refreshWorld(){
-        LOGIC_DELAY = 200;
-        gui.clearDrawables();
+        LOGIC_DELAY = DEFAULT_LOGIC_DELAY;
+        clearDrawables();
         listOfTreats.clear();
         createObjects();
+        setSnakeImages();
+    }
+
+    //  Sets snake images based on body orientation. Otherwise everything looks like 'default.png' at the start.
+    private void setSnakeImages(){
+        ArrayList<SnakeCell> tempSnake = head.getSnakeCells();
+        for(int i = 0; i < tempSnake.size(); i++){
+            tempSnake.get(i).updateObjectImage();
+        }
     }
 
     //  Create the in-game objects, like snake cells and treats.
@@ -183,14 +268,14 @@ public class Launch {
         head = new SnakeCell(10,10,'r',DEFAULT_LENGTH,0);
         ArrayList<SnakeCell> cellList = head.getSnakeCells();
         for(int i = 0; i < cellList.size(); i++){
-            gui.addToForeground(cellList.get(i));
+            addToForeground(cellList.get(i));
         }
     }
 
     //  Adds an extra cell to the snake and adds it to the gui to draw.
     private void addCellToSnake(){
         SnakeCell newSnakeCell = head.addAnotherCell();
-        gui.addToForeground(newSnakeCell);
+        addToForeground(newSnakeCell);
     }
 
     //  Creates a randomly-positioned treat somewhere on the map.
@@ -199,47 +284,25 @@ public class Launch {
         treat.setIcon(treatTile);
         //  Create random grid coordinates for the location
         int[] coords = new int[2];
-        coords[0] = CustomToolkit.randomUpToExcluding(gridSize);
-        coords[1] = CustomToolkit.randomUpToExcluding(gridSize);
+            do {    //  Loop generates random coordinates until they fall outside of the snake.
+                coords[0] = CustomToolkit.randomUpToExcluding(gridSize);
+                coords[1] = CustomToolkit.randomUpToExcluding(gridSize);
+            }   while((head.locationIsWithinSnake(coords)));
         treat.setGridLocation(coords[0],coords[1]);
         //  ..and convert them to XY coordinates.
         int[] XYcoords = convertToCoords(coords[0],coords[1]);
         treat.setXYLocation(XYcoords[0],XYcoords[1]);
-        listOfTreats.add(treat);
-        gui.addToBackground(treat);
-    }
-
-
-    //  Checks if any existing treats are at the specified location on the grid.
-    //  INPUT:  grid coordinates as int[2]
-    //  OUTPUT: if found, the treat at the location. If not, returns null.
-    private Treat returnTreatAtLocation(int[] gridCoords){
-        int max = listOfTreats.size();
-        for(int i = 0; i < max; i++){                   //  Cycle through the list of existing treats
-            Treat treat = listOfTreats.get(i);
-            if(treat.sameGridLocationAs(gridCoords)){   //  If the treat's location matches taht of the one passed,
-                return treat;                           //  Return it;
-            }
-        }
-        return null;                                    //  Otherwise return null.
+        addToInBetween(treat);
     }
 
     //  Function called when the treat is eaten.
     //  INPUT:  Treat that is eaten.
-    private void treatEaten(Treat treat){
-        removeTreatFromWorld(treat);                                        //  Remove the treat from the world
-        createNewTreat();                                                      //  Create a new treat
-        addCellToSnake();                                                   //  Grow the snake
-        System.out.println("The snake ate a treat!");
+    private void treatEaten(DrawableObject treat){
+        removeFromWorld(treat);                                                 //  Remove the treat from the world
+        createNewTreat();                                                       //  Create a new treat
+        addCellToSnake();                                                       //  Grow the snake
         System.out.println("Current length: " + head.getLengthOfBody(0));
-        LOGIC_DELAY = (int)((double)LOGIC_DELAY * 0.9);                     //  Increase speed of game.
-    }
-
-    //  Removes the Treat from list of existing treat, and from list of objects to draw;
-    //  INPUT:  Treat to remove.
-    public void removeTreatFromWorld(Treat treat){
-        listOfTreats.remove(treat);
-        gui.removeFromScreen(treat);
+        LOGIC_DELAY = (int)((double)LOGIC_DELAY * 0.95);                       //  Increase speed of game.
     }
 
     //  Fills the background with the background tile;
@@ -302,5 +365,46 @@ public class Launch {
         temp[0] = gridXY[0]*cellWidth;
         temp[1] = gridXY[1]*cellHeight;
         return temp;
+    }
+
+
+    //  Adds a DrawableObject to the drawables list, which is then drawn onscreen by the panel at every cycle.
+    public void addToBackground(DrawableObject obj){
+        if(!background.contains(obj)){
+            background.add(obj);
+        }
+    }
+
+    public void addToInBetween(DrawableObject obj){
+        if(!inBetween.contains(obj)){
+            inBetween.add(obj);
+        }
+    }
+
+    public void addToForeground(DrawableObject obj){
+        if(!foreground.contains(obj)){
+            foreground.add(obj);
+        }
+    }
+
+
+    //  Removes all Drawable objects from the screen;
+    public void clearDrawables(){
+        int max = gameObjects.size();
+        for(int i = 0; i < max; i++){
+            ArrayList<DrawableObject> list = gameObjects.get(i);
+            list.clear();
+        }
+    }
+
+    //  Removes a DrawableObject from the drawables list, which is then drawn onscreen by the panel at every cycle.
+    public void removeFromWorld(DrawableObject obj){
+        int max = gameObjects.size();
+        for(int i = 0; i < max; i++){
+            ArrayList<DrawableObject> list = gameObjects.get(i);
+            if(list.contains(obj)){
+                list.remove(obj);
+            }
+        }
     }
 }

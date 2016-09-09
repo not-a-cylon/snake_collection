@@ -12,12 +12,22 @@ import java.util.ArrayList;
  */
 public class GUIDirector extends Thread{
 
+    private CustomAction pressedUp;
+    private CustomAction pressedDown;
+    private CustomAction pressedLeft;
+    private CustomAction pressedRight;
+
     private cWindowAdapter cwa;
     private cFrame frame;
-    private cPanel panel;
+    private cPanel canvasPanel;
 
-    private int FRAME_WIDTH;
-    private int FRAME_HEIGHT;
+    public static int WINDOW_WIDTH = 600;
+    public static int WINDOW_HEIGHT = 600;
+
+    public static int PANEL_WIDTH = 400;
+    public static int PANEL_HEIGHT = 400;
+    public static int DISPLAY_PADDING_WIDTH = 100;
+
 
     private int PAINT_DELAY;    /// Number of milliseconds the GUI waits before refreshing the screen.
     private boolean CONTINUE_PAINTING;
@@ -26,30 +36,21 @@ public class GUIDirector extends Thread{
     private ArrayList<DrawableObject> background;
     private ArrayList<DrawableObject> foreground;
 
-    private CustomAction pressedUp;
-    private CustomAction pressedDown;
-    private CustomAction pressedLeft;
-    private CustomAction pressedRight;
-
     public String actionToPerform;
 
-    public GUIDirector() {
-        this(400,400,400,400);
+    public static void setupStaticParams(){
+        cPanel.setPaddingWidth(DISPLAY_PADDING_WIDTH);
     }
 
-    public static void setupStaticParams(){}
-
-    public GUIDirector(int frameWidth, int frameHeight, int panelWidth, int panelHeight) {
-
+    public GUIDirector(){
         //  Initialize stuff,
         initializeParams();
-        initializeFrame(frameWidth,frameHeight);
-        initializePanel(panelWidth,panelHeight);
+        initializeFrame(WINDOW_WIDTH,WINDOW_HEIGHT);
+        initializeDisplay(PANEL_WIDTH,PANEL_HEIGHT);
         //  Create Actions and assign keyboard presses
         createActions();
-
         //  Add the canvas to the panel,
-        frame.add(panel);
+        frame.add(canvasPanel);
         //  And begin.
         start();
     }
@@ -57,11 +58,6 @@ public class GUIDirector extends Thread{
     private void initializeParams(){
         CustomToolkit.setParams();
         actionToPerform = " ";
-        background = new ArrayList<DrawableObject>();
-        foreground = new ArrayList<DrawableObject>();
-        Drawables = new ArrayList<ArrayList>();
-        Drawables.add(background);
-        Drawables.add(foreground);
         PAINT_DELAY = 50;
         CONTINUE_PAINTING = true;
     }
@@ -80,10 +76,10 @@ public class GUIDirector extends Thread{
         frame.setVisible(true);
     }
 
-    private void initializePanel(int w, int h) {
-        panel = new cPanel(w,h);
-        panel.loadToScreen(Drawables);
-        panel.repaint();
+    private void initializeDisplay(int w, int h) {
+        canvasPanel = new cPanel(w,h);
+        canvasPanel.loadToScreen(Drawables);
+        canvasPanel.repaint();
     }
 
     //  Called when 'start()' is called.
@@ -91,7 +87,7 @@ public class GUIDirector extends Thread{
         try{
             while(CONTINUE_PAINTING) {
                 Thread.sleep(PAINT_DELAY);
-                panel.loadToScreen(Drawables);
+                canvasPanel.loadToScreen(Launch.gameObjects);
             }
         } catch(InterruptedException e) {
             System.out.println(Thread.currentThread().getName() + " was interrupted");
@@ -120,50 +116,17 @@ public class GUIDirector extends Thread{
 
     //Sets the size of the panel;   takes in two integers, width and height;
     public void setPanelSize(int width, int height) {
-        panel.setSize(width, height);
+        canvasPanel.setSize(width, height);
     }
 
     //  Set background color of the panel;
     public void setBackgroundColor(Color color) {
-        panel.setBackgroundColor(color);
+        canvasPanel.setBackgroundColor(color);
     }
 
     //  Set background image of the panel;
     public void setBackgroundImage(BufferedImage image) {
-        panel.setBackgroundImage(image);
-    }
-
-    //  Adds a DrawableObject to the drawables list, which is then drawn onscreen by the panel at every cycle.
-    public void addToBackground(DrawableObject obj){
-        if(!background.contains(obj)){
-            background.add(obj);
-        }
-    }
-
-    public void addToForeground(DrawableObject obj){
-        if(!foreground.contains(obj)){
-            foreground.add(obj);
-        }
-    }
-
-    //  Removes a DrawableObject from the drawables list, which is then drawn onscreen by the panel at every cycle.
-    public void removeFromScreen(DrawableObject obj){
-        int max = Drawables.size();
-        for(int i = 0; i < max; i++){
-            ArrayList<DrawableObject> list = Drawables.get(0);
-            if(list.contains(obj)){
-                list.remove(obj);
-            }
-        }
-    }
-
-    //  Removes all Drawable objects from the screen;
-    public void clearDrawables(){
-        int max = Drawables.size();
-        for(int i = 0; i < max; i++){
-            ArrayList<DrawableObject> list = Drawables.get(i);
-            list.clear();
-        }
+        canvasPanel.setBackgroundImage(image);
     }
 
     private void createActions(){
@@ -176,8 +139,8 @@ public class GUIDirector extends Thread{
     private void createAndAssignAction(CustomAction action, String command){
         action = new CustomAction(command);
         action.setGUIDirectorReference(this);
-        panel.getInputMap().put(KeyStroke.getKeyStroke(command), "pressed" + command);
-        panel.getActionMap().put("pressed" + command, action);
+        canvasPanel.getInputMap().put(KeyStroke.getKeyStroke(command), "pressed" + command);
+        canvasPanel.getActionMap().put("pressed" + command, action);
     }
 
     public String getNextAction(){

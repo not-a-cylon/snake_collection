@@ -116,6 +116,7 @@ public class Direction {
 
     //  Returns the XY increment if the direction were suddenly reversed.
     //  Could have done it using getOpposite().getIncrement(), but getOpposite returns a char and not a dir. Too much hassle to recode everything.
+
     public int[] getReverseIncrement(){
         int[] forward = getIncrement();
         int[] reverse = new int[2];
@@ -125,13 +126,41 @@ public class Direction {
         return reverse;
     }
 
+    public static int[] getReverseIncrement(char c){
+        int[] forward = getIncrement(c);
+        int[] reverse = new int[2];
+        for(int i = 0; i < forward.length; i++){
+            reverse[i] = forward[i]*-1;
+        }
+        return reverse;
+    }
+
     //  Returns the current direction as a change in XY coordinates.
     public int[] getIncrement(){
-        int[] increment = new int[2];
+        /*int[] increment = new int[2];
         if(getDirection()==lVal){ increment[0] = -1; }
         if(getDirection()==rVal){ increment[0] = 1; }
         if(getDirection()==uVal){ increment[1] = -1; }
-        if(getDirection()==dVal){ increment[1] = 1; }
+        if(getDirection()==dVal){ increment[1] = 1; }*/
+        return getIncrement(getDirection());
+    }
+
+    //  Returns a char specifying the direction of path from coordinates a to b.
+    public static char getDirFromTo(int[] source, int[] destination){
+        char dir = ' ';
+        int[] incr = new int[2];
+        incr[0] = destination[0] - source[0];
+        incr[1] = destination[1] - source[1];
+        return convertIncrementToDir(incr);
+    }
+
+    //  Returns the current direction as a change in XY coordinates.
+    public static int[] getIncrement(char c){
+        int[] increment = new int[2];
+        if(c==lVal){ increment[0] = -1; }
+        if(c==rVal){ increment[0] = 1; }
+        if(c==uVal){ increment[1] = -1; }
+        if(c==dVal){ increment[1] = 1; }
         return increment;
     }
 
@@ -142,6 +171,15 @@ public class Direction {
         if(step[0]==0 && step[1]==1){       c = 'd'; }
         if(step[0]==0 && step[1]==-1){       c = 'u'; }
         return c;
+    }
+
+    public static int[] convertDirToIncrement(char dir){
+        int[] step = new int[2];
+        if(dir == 'r'){ step[0]=1; step[1]=0; }
+        if(dir == 'l'){ step[0]=-1; step[1]=0; }
+        if(dir == 'u'){ step[0]=0; step[1]=-1; }
+        if(dir == 'd'){ step[0]=0; step[1]=1; }
+        return step;
     }
 
     //  These two check if the direction passed is the same as the one faced currently.

@@ -31,6 +31,14 @@ public class Treat extends DrawableObject{
         setXYLocation(0,0);
     }
 
+    public void calculateStep(){
+        nextGridLocation = gridLocation;
+    }
+
+    public void step(){
+
+    }
+
     public Treat(int w, int h){
         super(w,h);
         setSize(DEFAULT_IMAGE_WIDTH, DEFAULT_IMAGE_HEIGHT);
