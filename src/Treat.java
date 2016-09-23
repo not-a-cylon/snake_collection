@@ -14,7 +14,10 @@ public class Treat extends DrawableObject{
 
     //  Sets up the default static parameters for all objects to share; called early on by the processor
     public static void setupStaticImageParams(){
-        DEFAULT_BUFFERED_IMAGE = CustomToolkit.loadImage("\\Treat\\default.png");
+        BufferedImage temp = CustomToolkit.loadImage("\\Treat\\default.png");
+        if(temp!=null) {
+            DEFAULT_BUFFERED_IMAGE = temp;
+        }
         DEFAULT_IMAGE_WIDTH = 20;
         DEFAULT_IMAGE_HEIGHT = 20;
         if(DEFAULT_BUFFERED_IMAGE != null){
@@ -22,7 +25,7 @@ public class Treat extends DrawableObject{
             DEFAULT_IMAGE_WIDTH = DEFAULT_BUFFERED_IMAGE.getWidth();
             DEFAULT_IMAGE_HEIGHT = DEFAULT_BUFFERED_IMAGE.getHeight();
         }   else    {
-            System.out.println("Treat was not able to load image from setupStaticImageParams");
+            System.out.println("setupStaticImageParams: Treat was not able to load static image; reverting to ugly default tile :[");
         }
     }
 

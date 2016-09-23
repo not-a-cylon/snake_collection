@@ -7,44 +7,48 @@ import java.util.HashMap;
 /**
  * Created by Swayze on 9/4/2016.
  *
- * The snake is a sort of a LinkedList, where the 'nextCell' points to the cell behind the current one.
- * The tail of the snake has a nextCell of 'null'
+ * The snake is a sort of a LinkedList, with each cell having a 'cellAhead' and a 'cellBehind' link;
+ * The head has 'cellAhead' set to NULL, and the tail has 'cellBehind' set to NULL;
  *
  *
  */
 
 public class SnakeCell extends DrawableObject {
 
-    private String contents;
-    private SnakeCell cellBehind;       //  The cell behind this one
-    private SnakeCell cellAhead = null;        //  The cell ahead of this one
-    public char oldDirection;
-    public Direction direction;
-    private String bodyPartType;
+    private SnakeCell cellBehind;               //  The cell behind this one
+    private SnakeCell cellAhead = null;         //  The cell ahead of this one
 
-    private boolean isHead = false;
-    private int length;
+    private String bodyPartType;                //  The bodypart that this cell represents could be "head_" "body_" or "tail_" followed by orientation like "l r u d";
+                                                //       body_ can also include ur ul dl dr due to corners
+    public Direction direction;                 //  Current direction the cell is facing;
+    public char oldDirection;                   //  A placeholder used in calculateStep();
+
+    private boolean isHead = false;             //  Set to true if the cell in question is a head.
+    private int length;                         //  Supposed to be the length of the snake... never actually used as intended.
 
     //  DEFAULT STATIC PARAMETERS
     public static int DEFAULT_IMAGE_WIDTH;
     public static int DEFAULT_IMAGE_HEIGHT;
-    public static String DEFAULT_IMAGE_PATH;
 
     public static BufferedImage DEFAULT_BUFFERED_IMAGE;
 
     public static HashMap<String,BufferedImage> imageMap;
 
-    //  Sets up the default static parameters for all objects to share; called early on by the processor
+    //  Sets up the default static parameters for all instances of the class to share; called early on by the processor
     public static void setupStaticImageParams(){
-        DEFAULT_BUFFERED_IMAGE = CustomToolkit.loadImage("SnakeCell\\default.png");
+        //  Before this even starts, DEFAULT_BUFFERED_IMAGE is set to a pre-rendered default icon by Launch;
+        BufferedImage temp = CustomToolkit.loadImage("SnakeCell\\default.png");
+        if(temp!=null){                         //  If the image loaded successfully, change DEFAULT_BUFFERED_IMAGE to it;
+            DEFAULT_BUFFERED_IMAGE = temp;
+        }
         DEFAULT_IMAGE_WIDTH = 20;
         DEFAULT_IMAGE_HEIGHT = 20;
-        if(DEFAULT_BUFFERED_IMAGE != null){
+        if(DEFAULT_BUFFERED_IMAGE != null){     //  Make image background invisible;
             DEFAULT_BUFFERED_IMAGE = CustomToolkit.removeTileBackground(DEFAULT_BUFFERED_IMAGE);
             DEFAULT_IMAGE_WIDTH = DEFAULT_BUFFERED_IMAGE.getWidth();
             DEFAULT_IMAGE_HEIGHT = DEFAULT_BUFFERED_IMAGE.getHeight();
         }   else    {
-            System.out.println("SnakeCell was not able to load image from setupStaticImageParams");
+            System.out.println("setupStaticImageParams: SnakeCell was not able to load static image; reverting to ugly default tile :[");
         }
         setUpImageMap();
     }
@@ -64,6 +68,10 @@ public class SnakeCell extends DrawableObject {
     //  Each image is created by rotating the original by a multiple of 90 degrees.
     private static void generateImagesViaRotation(String prefix, String[] suffices){
         BufferedImage img = (CustomToolkit.removeTileBackground(CustomToolkit.loadImage("SnakeCell\\" + prefix + suffices[0] + ".png")));
+        if(img==null){
+            System.out.println("generateImagesViaRotation: SnakeCell was not able to rotate image; reverting to ugly default tile :[");
+            img = DEFAULT_BUFFERED_IMAGE;   //  If img cannot be loaded, set it to the default ugly one.
+        }
         for(int i = 0; i < 4; i++){
             String s = prefix + suffices[i];
             imageMap.put(s,CustomToolkit.rotateImage(img,Math.toRadians(i*90)));
@@ -77,19 +85,19 @@ public class SnakeCell extends DrawableObject {
     //  Main constructor to create a SnakeCell; the rest of the snake is created recursively based on the 'length' parameter passed
     //  INPUTS:     <int>   gridX and gridY --  Where the cell is to be placed on the grid, in column (X) and row (Y)
     //              <char>  dir             --  Direction the cell should face  (u,d,l,r)
-    //              <int>   length          --  Desired length of the snake; gets decremented as the constructor calls itself
-    //              <int>   counter         --  An internal parameter to help identify the 'head'; gets incremented as constructor calls itself
+    //              <int>   length          --  Desired length of the snake; gets decremented as the constructor calls itself; reaches value of 1 at the tail.
+    //              <int>   counter         --  An internal parameter to help identify the 'head'; gets incremented as constructor calls itself; 0 means it's the head
     public SnakeCell(int gridX, int gridY, char dir, int length, int counter){
 
         if(counter==0){         //  If the counter is zero, that means this is the head.
             isHead=true;
-        } if(length!=0){        //  If length is not zero, means there's more cells to be made
-            setSize(DEFAULT_IMAGE_WIDTH, DEFAULT_IMAGE_HEIGHT);
+        } if(length!=0){        //  If length is not zero, means there's more cells to be made; make them!
+            setSize(DEFAULT_IMAGE_WIDTH, DEFAULT_IMAGE_HEIGHT);     //  Set the size, image, location, direction, and length of the new cell
             setIcon(DEFAULT_BUFFERED_IMAGE);
             setGridLocation(gridX, gridY);
             setDirection(dir);
             setLength(length);
-            if(length > 1) {    //  If length is 1, means current one should be the last cell; create no more.
+            if(length > 1) {    //  If true, means there should be a cell behind it; decrement length by 1 for the next round.
                 //  calculate the location behind the current cell based on current direction and location
                 int[] locationBehind = CustomToolkit.fuseArrays(direction.getReverseIncrement(),getGridLocation());
                 //  create the next cell at the location behind this one and facing the same direction, passing length-- and counter++
@@ -100,23 +108,8 @@ public class SnakeCell extends DrawableObject {
         }
     }
 
-    public void debugTest(){
-        System.out.println("Current grid location of cell: [" + gridLocation[0] + "][" + gridLocation[1] + "]");
-        System.out.println("Direction facing: " + getDirection());
-        int[] nextMovementIncrement = direction.getIncrement();
-        System.out.println("At next move, the coordinates will change by [" + nextMovementIncrement[0] + "][" + nextMovementIncrement[1] + "]");
-        int[] nextLoc = CustomToolkit.fuseArrays(getGridLocation(),nextMovementIncrement);
-        System.out.println("After next step, the cell will be at [" + nextLoc[0] + "][" + nextLoc[1] + "]");
-        char reverseDir = direction.getOpposite();
-        System.out.println("Reverse direction: " + reverseDir);
-        int[] reverseMovementIncrement = direction.getReverseIncrement();
-        System.out.println("If stepping backward, coordinates would change by [" + reverseMovementIncrement[0] + "][" + reverseMovementIncrement[1] + "]");
-        int[] locationBehind = CustomToolkit.fuseArrays(reverseMovementIncrement,getGridLocation());
-        System.out.println("After backward step, the cell would be at [" + nextLoc[0] + "][" + nextLoc[1] + "]");
-    }
-
     //  This gets called by the processor;  normally I'd let objects do their own thing, but the order in which objects are called on is complicated and messes the snake up
-    //      So this gets called on the its Head only, which takes care of the rest in careful sequence.
+    //      So this gets called on the its Head only, which takes care of the rest of the body in careful sequence.
     public void calculateStep(){
         if(isHead()){
             calculateNextLocationsOfcells();                //  Calculate and set future locations of the cells behind this one
@@ -135,6 +128,7 @@ public class SnakeCell extends DrawableObject {
         setIcon(imageMap.get(getBodyPartType()));   //  Set the icon
     }
 
+    //  Recursively calculates the nextGridLocation of every cell in the snake based on its current location and direction.
     public void calculateNextLocationsOfcells(){
         nextGridLocation = null;                    //  Reset nextGridLocation calculated in previous cycle
         if(hasCellBehind()){
@@ -147,15 +141,16 @@ public class SnakeCell extends DrawableObject {
         setGridLocation(nextGridLocation[0],nextGridLocation[1]);
     }
 
+    //  Recursively resets the directions of all SnakeCells; each cell changes its direction to match that of the one ahead.
     private void updateLimbDirectionsOfCells(char newDir){
         if(hasCellBehind()){
             cellBehind.updateLimbDirectionsOfCells(direction.getDirection());
         }
-        oldDirection = getDirection();
-        setDirection(newDir);
+        oldDirection = getDirection();  //  oldDirection allows a new cell to calculate its direction, if it is to be added at this cycle.
+        setDirection(newDir);           //  Set its direction to the one of the cell ahead;
     }
 
-    //  Adds a cell to the tail of the snake
+    //  Recursively cycles through the snake until a tail is reached, then adds a new cell to it.
     public SnakeCell addAnotherCell(){
         if(hasCellBehind()){
             return cellBehind.addAnotherCell();
@@ -166,7 +161,7 @@ public class SnakeCell extends DrawableObject {
             setCellBehind(newCell);                         //  Sets the link behind the current cell to the new cell
             newCell.setCellAhead(this);                     //  Sets the new cell's forward link to this cell
             newCell.direction.setDirection(oldDirection);   //  Sets the new cell's direction to current cell's old direction
-            newCell.nextGridLocation = CustomToolkit.fuseArrays(newCell.direction.getIncrement(),newCell.getGridLocation());    //  Sets newCells nextDirection
+            newCell.nextGridLocation = CustomToolkit.fuseArrays(newCell.direction.getIncrement(),newCell.getGridLocation());    //  Sets newCell's nextGridLocation, since calculateStep() was never called on it
             return newCell;
         }
     }
@@ -218,16 +213,6 @@ public class SnakeCell extends DrawableObject {
         return false;
     }
 
-    //  Deprecated... may not be used at all
-    public void moveSnakeCellTo(int x, int y){
-        if(cellBehind!=null) {
-            cellBehind.moveSnakeCellTo(gridLocation[0],gridLocation[1]);
-        }
-        gridLocation[0] = x;
-        gridLocation[1] = y;
-        setXYLocation(x*IMAGE_WIDTH, y*IMAGE_HEIGHT);
-    }
-
     //  Returns the location of the Cell on the grid.
     public int[] getGridLocation(){
         return gridLocation;
@@ -235,6 +220,12 @@ public class SnakeCell extends DrawableObject {
 
     public static boolean isSameLocation(int[] loc1, int[] loc2){
         return ((loc1[0] == loc2[0]) && (loc1[1] == loc2[1]));
+    }
+
+    //  Returns grid coordinates of the next location of the cell, were it to step forward.
+    public int[] getNextLocation(){
+        return nextGridLocation;
+        //return CustomToolkit.fuseArrays(direction.getIncrement(),getGridLocation());
     }
 
     //  Returns true if the cell has a cell linked behind it
@@ -245,12 +236,6 @@ public class SnakeCell extends DrawableObject {
     //  Returns true if the cell has a cell linked ahead of it
     public boolean hasCellAhead(){
         return (cellAhead != null);
-    }
-
-    //  Returns grid coordinates of the next location of the cell, were it to step forward.
-    public int[] getNextLocation(){
-        return nextGridLocation;
-        //return CustomToolkit.fuseArrays(direction.getIncrement(),getGridLocation());
     }
 
     public SnakeCell getCellBehind(){

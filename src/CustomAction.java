@@ -3,6 +3,8 @@ import java.awt.event.ActionEvent;
 
 /**
  * Created by Swayze on 9/5/2016.
+ *
+ * Creted for conveniece; works along with keyboard commands.
  */
 public class CustomAction extends AbstractAction {
 

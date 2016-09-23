@@ -28,13 +28,15 @@ public class cPanel extends JPanel {
     private int paintCount = 0;
     private boolean DEBUG = false;
 
-    public static int PANEL_WIDTH;
-    public static int PANEL_HEIGHT;
+    //  PANEL dimensions include the width of the display (where the game is drawn) and PADDING_WIDTH (where the HUD is drawn)
+    public int PANEL_WIDTH;
+    public int PANEL_HEIGHT;
 
-    public static int PADDING_WIDTH;
+    public int PADDING_WIDTH = 20;
 
-    public static int DISPLAY_WIDTH;
-    public static int DISPLAY_HEIGHT;
+    public int DISPLAY_WIDTH;
+    public int DISPLAY_HEIGHT;
+
 
 
 
@@ -50,7 +52,7 @@ public class cPanel extends JPanel {
         canvasGraphics = (Graphics2D)canvas.getGraphics();
 
         backgroundColor = Color.BLACK;  //default BG color, until overridden;
-        backgroundImage = new BufferedImage(getWidth(),getHeight(), BufferedImage.TYPE_INT_ARGB);
+        backgroundImage = new BufferedImage(getWidth() - 2*PADDING_WIDTH,getHeight()  - 2*PADDING_WIDTH, BufferedImage.TYPE_INT_ARGB);
         backgroundGraphics = (Graphics2D)backgroundImage.getGraphics();
 
         setBackgroundToDefault();
@@ -60,10 +62,22 @@ public class cPanel extends JPanel {
     //		It's important that the super's paintComponent class is called first, for some reason.
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
-        g.drawImage(canvas, 0, 0, this);	// this is the important bit that draws the buffer onto the screen.
+        g.drawImage(canvas, PADDING_WIDTH, PADDING_WIDTH, this);	// this is the important bit that draws the buffer onto the screen.
     }
 
-    //  Scans through the passed list of DrawableObjects and draws them onto the buffer using their size, location, and image.
+    public void loadImageToScreen(BufferedImage image){
+        loadImageToScreen(image,0,0);
+        //canvasGraphics.drawImage(image,0,0,this);
+        repaint();
+    }
+
+    //  Paints the image over everything else still in memory; this gets erased when refreshed, though;
+    public void loadImageToScreen(BufferedImage image, int x, int y){
+        canvasGraphics.drawImage(image,x,y,this);
+        repaint();
+    }
+
+    //  Scans through the passed list of DrawableObjects and draws them onto the buffer using their location and image.
     //  Afterwards, the buffer is drawn to the screen using the repaint() method.
     public void loadListToScreen(ArrayList<DrawableObject> objects){
         if(!(objects == null) && !(objects.size()==0)){
@@ -76,24 +90,15 @@ public class cPanel extends JPanel {
         //repaint();
     }
 
+    //  First and foremost, draws its default backgroundImage on the buffer
+    //  Then draws every object in the collection passed by first splitting it into individual lists, then calling loadListToScreen() on each one;
     public void loadToScreen(ArrayList<ArrayList> listsToDraw){
         canvasGraphics.drawImage(backgroundImage, 0, 0, this);
         if(!(listsToDraw == null) && !(listsToDraw.size()==0)){
             int max = listsToDraw.size();
             for(int i = 0; i < max; i++) {
-                //(ArrayList<DrawableObject>)listsToDraw.get(i);
                 loadListToScreen(listsToDraw.get(i));
-            /*    ArrayList<DrawableObject> thingsToDraw = listsToDraw.get(0);
-                if (!(thingsToDraw == null) && !(thingsToDraw.size() == 0)) {
-                    int listSize = thingsToDraw.size();
-                    for(int i = 0; i < listSize; i++) {
-                        DrawableObject obj = thingsToDraw.get(i);
-                        canvasGraphics.drawImage(obj.getCurrentIcon(), obj.getX(), obj.getY(), this);
-                    }
-
-                }*/
             }
-
         }
         repaint();
     }
@@ -116,18 +121,8 @@ public class cPanel extends JPanel {
         backgroundGraphics = (Graphics2D)backgroundImage.getGraphics();
     }
 
-    public static void setPaddingWidth(int pad){
+    public void setPaddingWidth(int pad){
         PADDING_WIDTH = pad;
-    }
-
-    public static void setPanelDimensions(int w, int h){
-        PANEL_WIDTH = w;
-        PANEL_HEIGHT = h;
-    }
-
-    public static void setDisplayDimensions(int w, int h){
-        DISPLAY_WIDTH = w;
-        DISPLAY_HEIGHT = h;
     }
 
 }

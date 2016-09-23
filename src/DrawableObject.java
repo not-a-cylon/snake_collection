@@ -25,8 +25,19 @@ public class DrawableObject {
     protected int x;
     protected int y;
 
+    protected int globalX;
+    protected int globalY;
+
     protected int[] gridLocation;
     protected int[] nextGridLocation;
+
+    protected int HITBOX_WIDTH;
+    protected int HITBOX_HEIGHT;
+
+    protected int hitboxX;
+    protected int hitboxY;
+
+
 
     public static void setStringTest(String s){
         DEFAULT_IMAGE_DIRECTORY = s;
@@ -79,7 +90,6 @@ public class DrawableObject {
         setHeight(H);
     }
 
-
     public void setGridLocation(int x, int y){
         gridLocation[0] = x;
         gridLocation[1] = y;
@@ -124,6 +134,9 @@ public class DrawableObject {
     public void setXYLocation(int X, int Y){
         setX(X);
         setY(Y);
+
+        setGlobalX(X);
+        setGlobalY(Y);
     }
 
     public void setX(int X){
@@ -140,6 +153,45 @@ public class DrawableObject {
 
     public int getY(){
         return y;
+    }
+
+    public void setGlobalX(int X){
+        globalX = X;
+    }
+
+    public void setGlobalY(int Y){
+        globalY = Y;
+    }
+
+    public int getGlobalX(){
+        return globalX;
+    }
+
+    public int getGlobalY(){
+        return globalY;
+    }
+
+    public int leftEdge(){  return getGlobalX();    }
+
+    public int rightEdge(){  return (getGlobalX() + HITBOX_WIDTH);    }
+
+    public int topEdge(){  return getGlobalY();    }
+
+    public int bottomEdge(){  return (getGlobalY() + HITBOX_HEIGHT);    }
+
+    //  Checks for a collision between two DrawableObjects based on their respective locations.
+    public boolean hasCollidedWith(DrawableObject target){
+        boolean collided = false;
+        if((CustomToolkit.isBetween(target.leftEdge(),this.leftEdge(),this.rightEdge()) && (CustomToolkit.isBetween(target.topEdge(),this.topEdge(),this.bottomEdge())))){
+            collided = true;
+        }   else if((CustomToolkit.isBetween(target.rightEdge(),this.leftEdge(),this.rightEdge()) && (CustomToolkit.isBetween(target.topEdge(),this.topEdge(),this.bottomEdge())))){
+            collided = true;
+        }   else if((CustomToolkit.isBetween(target.bottomEdge(),this.topEdge(),this.bottomEdge()) && (CustomToolkit.isBetween(target.leftEdge(),this.leftEdge(),this.rightEdge())))){
+            collided = true;
+        }   else if((CustomToolkit.isBetween(target.bottomEdge(),this.topEdge(),this.bottomEdge()) && (CustomToolkit.isBetween(target.rightEdge(),this.leftEdge(),this.rightEdge())))){
+            collided = true;
+        }
+        return collided;
     }
 
 }
